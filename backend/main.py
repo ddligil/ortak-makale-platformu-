@@ -175,6 +175,12 @@ def update_article(
 
     # Güncelleme
     update_data = article_update.model_dump(exclude_unset=True)
+    
+    # Versiyon kontrolü için user_id ekle
+    if 'content' in update_data:
+        update_data['user_id'] = current_user['id']
+        update_data['version_note'] = f"Versiyon {article.get('current_version', 1) + 1}"
+    
     updated_article = storage.update_article(article_id, **update_data)
 
     # History kaydet
@@ -314,6 +320,100 @@ def mark_notification_read(
 def mark_all_notifications_read(current_user: dict = Depends(get_current_user)):
     success = storage.mark_all_notifications_read(current_user['id'])
     return {"message": "Tüm bildirimler okundu olarak işaretlendi"}
+
+# Versiyon kontrol sistemi endpoint'leri
+@app.get("/articles/{article_id}/versions")
+def get_article_versions(
+    article_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Bir makalenin tüm versiyonlarını getir"""
+    article = storage.get_article_by_id(article_id)
+    if not article:
+        raise HTTPException(status_code=404, detail="Makale bulunamadı")
+    
+    # Yetki kontrolü
+    if article['author_id'] != current_user['id']:
+        if not storage.is_collaborator(article_id, current_user['id']):
+            raise HTTPException(status_code=403, detail="Bu makalenin versiyonlarını görme izniniz yok")
+    
+    versions = storage.get_article_versions(article_id)
+    return versions
+
+@app.get("/articles/{article_id}/versions/{version_number}")
+def get_article_version(
+    article_id: int,
+    version_number: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Belirli bir versiyonu getir"""
+    article = storage.get_article_by_id(article_id)
+    if not article:
+        raise HTTPException(status_code=404, detail="Makale bulunamadı")
+    
+    # Yetki kontrolü
+    if article['author_id'] != current_user['id']:
+        if not storage.is_collaborator(article_id, current_user['id']):
+            raise HTTPException(status_code=403, detail="Bu makalenin versiyonlarını görme izniniz yok")
+    
+    version = storage.get_article_version(article_id, version_number)
+    if not version:
+        raise HTTPException(status_code=404, detail="Versiyon bulunamadı")
+    
+    return version
+
+@app.get("/articles/{article_id}/compare/{version1}/{version2}")
+def compare_versions(
+    article_id: int,
+    version1: int,
+    version2: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """İki versiyon arasındaki farkları karşılaştır"""
+    article = storage.get_article_by_id(article_id)
+    if not article:
+        raise HTTPException(status_code=404, detail="Makale bulunamadı")
+    
+    # Yetki kontrolü
+    if article['author_id'] != current_user['id']:
+        if not storage.is_collaborator(article_id, current_user['id']):
+            raise HTTPException(status_code=403, detail="Bu makalenin versiyonlarını görme izniniz yok")
+    
+    comparison = storage.compare_versions(article_id, version1, version2)
+    if "error" in comparison:
+        raise HTTPException(status_code=404, detail=comparison["error"])
+    
+    return comparison
+
+@app.post("/articles/{article_id}/restore/{version_number}")
+def restore_version(
+    article_id: int,
+    version_number: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Belirli bir versiyonu geri yükle"""
+    article = storage.get_article_by_id(article_id)
+    if not article:
+        raise HTTPException(status_code=404, detail="Makale bulunamadı")
+    
+    # Yetki kontrolü
+    if article['author_id'] != current_user['id']:
+        if not storage.is_collaborator(article_id, current_user['id']):
+            raise HTTPException(status_code=403, detail="Bu makaleyi düzenleme izniniz yok")
+    
+    version = storage.get_article_version(article_id, version_number)
+    if not version:
+        raise HTTPException(status_code=404, detail="Versiyon bulunamadı")
+    
+    # Versiyonu geri yükle
+    updated_article = storage.update_article(
+        article_id, 
+        content=version['content'],
+        user_id=current_user['id'],
+        version_note=f"Versiyon {version_number} geri yüklendi"
+    )
+    
+    return ArticleResponse(**updated_article)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8080) 

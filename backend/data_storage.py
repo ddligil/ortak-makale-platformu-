@@ -13,6 +13,7 @@ class JSONStorage:
         self.friendships_file = os.path.join(self.data_dir, "friendships.json")
         self.article_history_file = os.path.join(self.data_dir, "article_history.json")
         self.notifications_file = os.path.join(self.data_dir, "notifications.json")
+        self.article_versions_file = os.path.join(self.data_dir, "article_versions.json")
         
         # Data klasörünü oluştur
         os.makedirs(self.data_dir, exist_ok=True)
@@ -28,7 +29,8 @@ class JSONStorage:
             (self.collaborations_file, []),
             (self.friendships_file, []),
             (self.article_history_file, []),
-            (self.notifications_file, [])
+            (self.notifications_file, []),
+            (self.article_versions_file, [])
         ]
         
         for file_path, default_data in files:
@@ -97,11 +99,16 @@ class JSONStorage:
             'author_id': author_id,
             'is_public': is_public,
             'created_at': datetime.utcnow().isoformat(),
-            'updated_at': datetime.utcnow().isoformat()
+            'updated_at': datetime.utcnow().isoformat(),
+            'current_version': 1
         }
         
         articles.append(article)
         self._write_json(self.articles_file, articles)
+        
+        # İlk versiyonu oluştur
+        self.create_article_version(article['id'], author_id, content, 1, "İlk versiyon")
+        
         return article
     
     def get_article_by_id(self, article_id: int) -> Optional[Dict]:
@@ -116,12 +123,28 @@ class JSONStorage:
         
         for article in articles:
             if article['id'] == article_id:
+                # Mevcut versiyonu al
+                current_version = article.get('current_version', 1)
+                
+                # Yeni versiyon oluştur (eğer content değiştiyse)
+                if 'content' in kwargs and kwargs['content'] != article['content']:
+                    new_version = current_version + 1
+                    kwargs['current_version'] = new_version
+                    
+                    # Versiyon oluştur
+                    user_id = kwargs.get('user_id', article['author_id'])
+                    version_note = kwargs.get('version_note', f"Versiyon {new_version}")
+                    self.create_article_version(article_id, user_id, kwargs['content'], new_version, version_note)
+                
+                # Diğer alanları güncelle
                 for key, value in kwargs.items():
-                    if key in article:
+                    if key not in ['user_id', 'version_note']:  # Bu alanları article'a kaydetme
                         article[key] = value
+                
                 article['updated_at'] = datetime.utcnow().isoformat()
                 self._write_json(self.articles_file, articles)
                 return article
+        
         return None
     
     def get_user_articles(self, user_id: int, include_collaborations: bool = True) -> List[Dict]:
@@ -302,6 +325,94 @@ class JSONStorage:
                 results.append(user)
         
         return results[:10]  # En fazla 10 sonuç
+
+    # Versiyon kontrol sistemi
+    def create_article_version(self, article_id: int, user_id: int, content: str, version_number: int, note: str = "") -> Dict:
+        """Yeni bir makale versiyonu oluştur"""
+        versions = self._read_json(self.article_versions_file)
+        
+        version = {
+            'id': len(versions) + 1,
+            'article_id': article_id,
+            'user_id': user_id,
+            'content': content,
+            'version_number': version_number,
+            'note': note,
+            'created_at': datetime.utcnow().isoformat()
+        }
+        
+        versions.append(version)
+        self._write_json(self.article_versions_file, versions)
+        return version
+    
+    def get_article_versions(self, article_id: int) -> List[Dict]:
+        """Bir makalenin tüm versiyonlarını getir"""
+        versions = self._read_json(self.article_versions_file)
+        article_versions = [v for v in versions if v['article_id'] == article_id]
+        
+        # Kullanıcı bilgilerini ekle
+        for version in article_versions:
+            user = self.get_user_by_id(version['user_id'])
+            if user:
+                version['user_name'] = user['username']
+        
+        # Versiyon numarasına göre sırala
+        article_versions.sort(key=lambda x: x['version_number'])
+        return article_versions
+    
+    def get_article_version(self, article_id: int, version_number: int) -> Optional[Dict]:
+        """Belirli bir versiyonu getir"""
+        versions = self._read_json(self.article_versions_file)
+        
+        for version in versions:
+            if version['article_id'] == article_id and version['version_number'] == version_number:
+                # Kullanıcı bilgisini ekle
+                user = self.get_user_by_id(version['user_id'])
+                if user:
+                    version['user_name'] = user['username']
+                return version
+        
+        return None
+    
+    def compare_versions(self, article_id: int, version1: int, version2: int) -> Dict:
+        """İki versiyon arasındaki farkları hesapla"""
+        v1 = self.get_article_version(article_id, version1)
+        v2 = self.get_article_version(article_id, version2)
+        
+        if not v1 or not v2:
+            return {"error": "Versiyon bulunamadı"}
+        
+        # Basit diff algoritması - satır bazında karşılaştırma
+        content1 = v1['content'].split('\n')
+        content2 = v2['content'].split('\n')
+        
+        differences = []
+        
+        # Yeni eklenen satırları bul
+        for i, line in enumerate(content2):
+            if i >= len(content1) or line != content1[i]:
+                differences.append({
+                    'type': 'added',
+                    'line_number': i + 1,
+                    'content': line,
+                    'user': v2['user_name']
+                })
+        
+        # Silinen satırları bul
+        for i, line in enumerate(content1):
+            if i >= len(content2) or line != content2[i]:
+                differences.append({
+                    'type': 'deleted',
+                    'line_number': i + 1,
+                    'content': line,
+                    'user': v1['user_name']
+                })
+        
+        return {
+            'version1': v1,
+            'version2': v2,
+            'differences': differences
+        }
 
 # Global storage instance
 storage = JSONStorage() 

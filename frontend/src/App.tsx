@@ -15,7 +15,7 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/" element={
             <div className="container mx-auto px-4 py-8">
-              <h1 className="text-3xl font-bold text-center">Ortak Makale Platformu</h1>
+              <h1 className="text-3xl font-bold text-center">MakaleHub</h1>
               <p className="text-center mt-4">Hoş geldiniz!</p>
               <div className="text-center mt-8 space-x-4">
                 <a href="/login" className="text-blue-600 hover:text-blue-500">

@@ -49,6 +49,64 @@ code {
   text-align: center;
 }
 
+/* Kullanıcı etiketleri için stiller */
+.user-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.9em;
+  margin-right: 8px;
+}
+
+.user-tag-blue {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+  border: 1px solid #93C5FD;
+}
+
+.user-tag-green {
+  background-color: #D1FAE5;
+  color: #065F46;
+  border: 1px solid #6EE7B7;
+}
+
+.user-tag-yellow {
+  background-color: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FCD34D;
+}
+
+.user-tag-red {
+  background-color: #FEE2E2;
+  color: #991B1B;
+  border: 1px solid #FCA5A5;
+}
+
+.user-tag-purple {
+  background-color: #EDE9FE;
+  color: #5B21B6;
+  border: 1px solid #C4B5FD;
+}
+
+.user-tag-cyan {
+  background-color: #CFFAFE;
+  color: #0E7490;
+  border: 1px solid #67E8F9;
+}
+
+.user-tag-orange {
+  background-color: #FED7AA;
+  color: #9A3412;
+  border: 1px solid #FDBA74;
+}
+
+.user-tag-pink {
+  background-color: #FCE7F3;
+  color: #9D174D;
+  border: 1px solid #F9A8D4;
+}
+
 /* Kullanıcı renkleri */
 .user-color-1 { color: #3B82F6; }
 .user-color-2 { color: #10B981; }
@@ -58,3 +116,142 @@ code {
 .user-color-6 { color: #F97316; }
 .user-color-7 { color: #06B6D4; }
 .user-color-8 { color: #84CC16; } 
+
+/* Makale içeriği için özel stil */
+.article-content {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  font-family: 'Inter', sans-serif;
+}
+
+.article-content h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 1em 0 0.5em 0;
+  color: #1f2937;
+}
+
+.article-content h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 1em 0 0.5em 0;
+  color: #374151;
+}
+
+.article-content h3 {
+  font-size: 1.25em;
+  font-weight: bold;
+  margin: 1em 0 0.5em 0;
+  color: #4b5563;
+}
+
+.article-content strong {
+  font-weight: bold;
+}
+
+.article-content em {
+  font-style: italic;
+}
+
+.article-content u {
+  text-decoration: underline;
+}
+
+.article-content del {
+  text-decoration: line-through;
+  color: #6b7280;
+}
+
+.article-content blockquote {
+  border-left: 4px solid #3b82f6;
+  padding-left: 1em;
+  margin: 1em 0;
+  background-color: #f8fafc;
+  font-style: italic;
+}
+
+.article-content code {
+  background-color: #f1f5f9;
+  padding: 0.2em 0.4em;
+  border-radius: 0.25em;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+}
+
+.article-content a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.article-content a:hover {
+  color: #1d4ed8;
+}
+
+/* LaTeX stilleri */
+.article-content .latex-inline {
+  font-family: 'Times New Roman', serif;
+  font-style: italic;
+  background-color: #f8f9fa;
+  padding: 0.1em 0.3em;
+  border-radius: 0.2em;
+  border: 1px solid #e9ecef;
+}
+
+.article-content .latex-block {
+  font-family: 'Times New Roman', serif;
+  font-style: italic;
+  background-color: #f8f9fa;
+  padding: 1em;
+  border-radius: 0.5em;
+  border: 1px solid #e9ecef;
+  margin: 1em 0;
+  text-align: center;
+  display: block;
+}
+
+.article-content .user-section {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.article-content .user-section-blue {
+  background-color: #F0F9FF;
+  border-left-color: #3B82F6;
+}
+
+.article-content .user-section-green {
+  background-color: #F0FDF4;
+  border-left-color: #10B981;
+}
+
+.article-content .user-section-yellow {
+  background-color: #FFFBEB;
+  border-left-color: #F59E0B;
+}
+
+.article-content .user-section-red {
+  background-color: #FEF2F2;
+  border-left-color: #EF4444;
+}
+
+.article-content .user-section-purple {
+  background-color: #FAF5FF;
+  border-left-color: #8B5CF6;
+}
+
+.article-content .user-section-cyan {
+  background-color: #ECFEFF;
+  border-left-color: #06B6D4;
+}
+
+.article-content .user-section-orange {
+  background-color: #FFF7ED;
+  border-left-color: #F97316;
+}
+
+.article-content .user-section-pink {
+  background-color: #FDF2F8;
+  border-left-color: #EC4899;
+} 

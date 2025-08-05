@@ -129,7 +129,7 @@ const Navbar: React.FC = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <BookOpen className="h-8 w-8 text-blue-600" />
-            <span className="ml-2 text-xl font-semibold text-gray-900">Makale Platformu</span>
+            <span className="ml-2 text-xl font-semibold text-gray-900">MakaleHub</span>
           </div>
           
           <div className="flex items-center space-x-4">
