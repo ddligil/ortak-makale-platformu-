@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { Save, ArrowLeft, Users, Plus, X, Search } from 'lucide-react';
+import { Save, ArrowLeft, Users, Plus, X, Search, BookOpen, Edit3, Eye, History } from 'lucide-react';
 
 interface Article {
   id?: number;
@@ -489,435 +489,319 @@ const ArticleEditor: React.FC = () => {
     }
   };
 
+  const removeCollaborator = async (collaboratorId: number) => {
+    if (!id || id === 'new') {
+      toast.error('Önce makaleyi kaydedin');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:8080/articles/${id}/collaborators/${collaboratorId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('İşbirlikçi kaldırıldı');
+      fetchCollaborators();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'İşbirlikçi kaldırılamadı');
+    }
+  };
+
+  const addCollaborator = (user: User) => {
+    handleAddCollaborator(user.id);
+  };
+
+  const handleUserSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    await handleSearchUsers();
+  };
+
   return (
-    <div className="container mx-auto p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center space-x-2 text-gray-600 hover:text-gray-800"
-        >
-          <ArrowLeft size={20} />
-          <span>Geri Dön</span>
-        </button>
-        <button
-          onClick={handleSave}
-          className="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          <Save size={20} />
-          <span>Kaydet</span>
-        </button>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-md border-b border-white/20 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-blue-600 transition-colors font-medium rounded-lg hover:bg-blue-50"
+              >
+                <ArrowLeft className="h-5 w-5" />
+                <span>Geri Dön</span>
+              </button>
+              
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <BookOpen className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    {isEditing ? 'Makale Düzenle' : 'Yeni Makale'}
+                  </h1>
+                  <p className="text-gray-600">
+                    {isEditing ? 'Makalenizi güncelleyin' : 'Yeni bir makale oluşturun'}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-      <div className="mb-4">
-        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-          Başlık
-        </label>
-        <input
-          type="text"
-          id="title"
-          value={article.title}
-          onChange={(e) => setArticle({ ...article, title: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Makale başlığı..."
-        />
-      </div>
-
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          İçerik
-        </label>
-        
-        {/* Kullanıcı rengi göstergesi */}
-        {currentUser && (
-          <div className="mb-2 flex items-center space-x-2">
-            <div 
-              className="w-4 h-4 rounded-full"
-              style={{ backgroundColor: getUserColorDisplay() }}
-            ></div>
-            <span className="text-sm text-gray-600">
-              <strong style={{ color: getUserColorDisplay() }}>
-                {currentUser.username}
-              </strong> 
-              olarak yazıyorsunuz
-            </span>
-          </div>
-        )}
-
-        {/* Basit Toolbar */}
-        <div className="mb-2 p-2 bg-gray-50 border border-gray-200 rounded-md">
-          <div className="flex flex-wrap gap-1">
-            {/* Başlıklar */}
-            <button
-              onClick={() => applyFormat('h1')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100"
-              title="Başlık 1"
-            >
-              H1
-            </button>
-            <button
-              onClick={() => applyFormat('h2')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100"
-              title="Başlık 2"
-            >
-              H2
-            </button>
-            <button
-              onClick={() => applyFormat('h3')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100"
-              title="Başlık 3"
-            >
-              H3
-            </button>
-            <div className="w-px h-6 bg-gray-300 mx-1"></div>
-            
-            {/* Formatlamalar */}
-            <button
-              onClick={() => applyFormat('bold')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 font-bold"
-              title="Kalın"
-            >
-              B
-            </button>
-            <button
-              onClick={() => applyFormat('italic')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 italic"
-              title="İtalik"
-            >
-              I
-            </button>
-            <button
-              onClick={() => applyFormat('underline')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 underline"
-              title="Altı Çizili"
-            >
-              U
-            </button>
-            <button
-              onClick={() => applyFormat('strikethrough')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 line-through"
-              title="Üstü Çizili"
-            >
-              S
-            </button>
-            <div className="w-px h-6 bg-gray-300 mx-1"></div>
-            
-            {/* Renkler */}
-            <button
-              onClick={() => applyFormat('color-red')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 text-red-600 font-bold"
-              title="Kırmızı"
-            >
-              🔴
-            </button>
-            <button
-              onClick={() => applyFormat('color-blue')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 text-blue-600 font-bold"
-              title="Mavi"
-            >
-              🔵
-            </button>
-            <button
-              onClick={() => applyFormat('color-green')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 text-green-600 font-bold"
-              title="Yeşil"
-            >
-              🟢
-            </button>
-            <button
-              onClick={() => applyFormat('color-yellow')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 text-orange-600 font-bold"
-              title="Turuncu"
-            >
-              🟠
-            </button>
-            <button
-              onClick={() => applyFormat('color-purple')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 text-purple-600 font-bold"
-              title="Mor"
-            >
-              🟣
-            </button>
-            <div className="w-px h-6 bg-gray-300 mx-1"></div>
-            
-            {/* Özel formatlamalar */}
-            <button
-              onClick={() => applyFormat('quote')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100"
-              title="Alıntı"
-            >
-              "
-            </button>
-            <button
-              onClick={() => applyFormat('code')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 font-mono"
-              title="Kod"
-            >
-              &lt;/&gt;
-            </button>
-            <button
-              onClick={() => applyFormat('latex')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 font-mono"
-              title="LaTeX (Satır içi)"
-            >
-              $x$
-            </button>
-            <button
-              onClick={() => applyFormat('latex-block')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 font-mono"
-              title="LaTeX (Blok)"
-            >
-              $$
-            </button>
-            <button
-              onClick={() => applyFormat('link')}
-              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100"
-              title="Link"
-            >
-              🔗
-            </button>
-          </div>
-        </div>
-
-        {/* Versiyon Kontrol Sistemi */}
-        {isEditing && versions.length > 0 && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-blue-800">Versiyon Kontrol</h4>
+            <div className="flex items-center space-x-4">
+              {/* Versiyon Geçmişi */}
               <button
                 onClick={() => setShowVersions(!showVersions)}
-                className="text-sm text-blue-600 hover:text-blue-800"
+                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-blue-600 transition-colors font-medium rounded-lg hover:bg-blue-50"
               >
-                {showVersions ? 'Gizle' : 'Göster'}
+                <History className="h-5 w-5" />
+                <span>Geçmiş</span>
+              </button>
+
+              {/* İşbirlikçiler */}
+              <button
+                onClick={() => setShowCollaborators(!showCollaborators)}
+                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-blue-600 transition-colors font-medium rounded-lg hover:bg-blue-50"
+              >
+                <Users className="h-5 w-5" />
+                <span>İşbirlikçiler</span>
+              </button>
+
+              {/* Kaydet */}
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Kaydediliyor...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-5 w-5" />
+                    <span>Kaydet</span>
+                  </>
+                )}
               </button>
             </div>
-            
-            {showVersions && (
-              <div className="space-y-2">
-                <div className="text-xs text-blue-600 mb-2">
-                  Mevcut Versiyon: {article.current_version || 1}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Ana Editör */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Başlık */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Makale Başlığı
+              </label>
+              <input
+                type="text"
+                value={article.title}
+                onChange={(e) => setArticle({ ...article, title: e.target.value })}
+                placeholder="Makale başlığını girin..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white/50 backdrop-blur-sm placeholder-gray-500 text-gray-900 text-lg font-medium"
+              />
+            </div>
+
+            {/* İçerik Editörü */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Makale İçeriği
+              </label>
+              <div className="border border-gray-300 rounded-xl overflow-hidden bg-white/50 backdrop-blur-sm">
+                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                  <div className="flex items-center space-x-2 text-sm text-gray-600">
+                    <Edit3 className="h-4 w-4" />
+                    <span>Zengin metin editörü</span>
+                  </div>
                 </div>
-                
-                <div className="max-h-40 overflow-y-auto space-y-1">
-                  {versions.map((version) => (
-                    <div 
-                      key={version.id} 
-                      className={`p-2 rounded text-xs border ${
-                        selectedVersion === version.version_number 
-                          ? 'bg-blue-100 border-blue-300' 
-                          : 'bg-white border-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-medium">Versiyon {version.version_number}</span>
-                          <span className="text-gray-500 ml-2">- {version.user_name}</span>
-                          <span className="text-gray-400 ml-2">
-                            {new Date(version.created_at).toLocaleString('tr-TR')}
-                          </span>
+                <div className="p-4">
+                  <textarea
+                    value={article.content}
+                    onChange={(e) => setArticle({ ...article, content: e.target.value })}
+                    placeholder="Makale içeriğinizi buraya yazın..."
+                    className="w-full h-96 resize-none border-none outline-none bg-transparent text-gray-900 placeholder-gray-500 text-base leading-relaxed"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Gizlilik Ayarı */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={article.is_public}
+                  onChange={(e) => setArticle({ ...article, is_public: e.target.checked })}
+                  className="w-5 h-5 rounded-lg border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2 transition-all duration-200"
+                />
+                <div>
+                  <span className="font-semibold text-gray-900">Genel Makale</span>
+                  <p className="text-sm text-gray-600">Bu makaleyi herkes görebilsin</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Sağ Sidebar */}
+          <div className="space-y-6">
+            {/* İşbirlikçiler Panel */}
+            {showCollaborators && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-gray-900">İşbirlikçiler</h3>
+                  <button
+                    onClick={() => setShowCollaborators(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-3 mb-4">
+                  {collaborators.map((collaborator) => (
+                    <div key={collaborator.id} className="flex items-center justify-between p-3 bg-gray-50/50 rounded-xl">
+                      <div className="flex items-center space-x-3">
+                        <div 
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                          style={{ backgroundColor: getUserColor(collaborator.id) }}
+                        >
+                          {collaborator.username.charAt(0).toUpperCase()}
                         </div>
-                        <div className="flex space-x-1">
-                          <button
-                            onClick={() => loadVersion(version.version_number)}
-                            className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-                          >
-                            Görüntüle
-                          </button>
-                          {version.version_number !== (article.current_version || 1) && (
-                            <button
-                              onClick={() => restoreVersion(version.version_number)}
-                              className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
-                            >
-                              Geri Yükle
-                            </button>
-                          )}
+                        <div>
+                          <div className="font-medium text-gray-900">{collaborator.username}</div>
+                          <div className="text-sm text-gray-500">{collaborator.email}</div>
                         </div>
                       </div>
-                      {version.note && (
-                        <div className="text-gray-600 mt-1 italic">
-                          {version.note}
-                        </div>
-                      )}
+                      <button
+                        onClick={() => removeCollaborator(collaborator.id)}
+                        className="text-red-500 hover:text-red-700 transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
                   ))}
                 </div>
-                
-                {selectedVersion && (
-                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                    <strong>Versiyon {selectedVersion}</strong> görüntüleniyor. 
-                    Değişiklik yapmak için "Güncel Versiyona Dön" butonuna tıklayın.
+
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Kullanıcı ara..."
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    />
                     <button
-                      onClick={() => {
-                        fetchArticle();
-                        setSelectedVersion(null);
-                      }}
-                      className="ml-2 px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                      onClick={handleUserSearch}
+                      className="px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200"
                     >
-                      Güncel Versiyona Dön
+                      <Search className="h-4 w-4" />
                     </button>
+                  </div>
+
+                  {searchResults.length > 0 && (
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {searchResults.map((user) => (
+                        <div key={user.id} className="flex items-center justify-between p-2 bg-gray-50/50 rounded-lg">
+                          <div>
+                            <div className="font-medium text-sm">{user.username}</div>
+                            <div className="text-xs text-gray-500">{user.email}</div>
+                          </div>
+                          <button
+                            onClick={() => addCollaborator(user)}
+                            className="px-2 py-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Versiyon Geçmişi Panel */}
+            {showVersions && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-gray-900">Versiyon Geçmişi</h3>
+                  <button
+                    onClick={() => setShowVersions(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {versions.map((version) => (
+                    <div 
+                      key={version.id} 
+                      className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                        selectedVersion === version.version_number 
+                          ? 'bg-blue-100 border border-blue-200' 
+                          : 'bg-gray-50/50 hover:bg-gray-100/50'
+                      }`}
+                      onClick={() => setSelectedVersion(version.version_number)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <div 
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                            style={{ backgroundColor: getUserColor(version.user_id) }}
+                          >
+                            {version.user_name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-medium text-sm text-gray-900">
+                            {version.user_name}
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          v{version.version_number}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 mb-2">{version.note}</p>
+                      <p className="text-xs text-gray-400">
+                        {new Date(version.created_at).toLocaleString('tr-TR')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {selectedVersion && (
+                  <div className="mt-4 p-3 bg-blue-50/50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-blue-900">
+                        Versiyon {selectedVersion} seçildi
+                      </span>
+                      <button
+                        onClick={() => setSelectedVersion(null)}
+                        className="text-blue-600 hover:text-blue-700 text-sm"
+                      >
+                        Temizle
+                      </button>
+                    </div>
+                                         <button
+                       onClick={() => restoreVersion(selectedVersion!)}
+                       className="w-full px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200"
+                     >
+                       Bu Versiyonu Geri Yükle
+                     </button>
                   </div>
                 )}
               </div>
             )}
           </div>
-        )}
-
-        {/* Renklendirilmiş görüntüleme */}
-        <div className="mb-4">
-          <div className="p-3 border border-gray-300 rounded-md bg-white min-h-64 max-h-96 overflow-y-auto">
-            {renderColoredContent(article.content)}
-          </div>
         </div>
-
-        {/* Düzenleme için textarea */}
-        <textarea
-          id="article-content"
-          value={article.content}
-          onChange={handleContentChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Makale içeriğinizi yazın..."
-          rows={10}
-        />
-
-        {/* İçerik ekleme butonları */}
-        <div className="mt-4 flex space-x-2">
-          <button
-            onClick={handleAddContent}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Yeni İçerik Ekle
-          </button>
-          <button
-            onClick={handleContinueFromLast}
-            className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
-          >
-            Kaldığın Yerden Devam Et
-          </button>
-        </div>
-
-        {/* İşbirlikçi Ekleme Bölümü */}
-        <div className="mt-6 p-4 border border-gray-300 rounded-md bg-gray-50">
-          <h3 className="text-lg font-semibold mb-3">İşbirlikçi Ekle</h3>
-          
-          {/* Kullanıcı Arama */}
-          <div className="mb-4">
-            <input
-              type="text"
-              placeholder="Kullanıcı ara..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Arama Sonuçları */}
-          {searchResults.length > 0 && (
-            <div className="mb-4">
-              <h4 className="font-medium mb-2">Kullanıcılar:</h4>
-              <div className="space-y-2">
-                {searchResults.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-2 bg-white border border-gray-200 rounded">
-                    <span>{user.username}</span>
-                    <button
-                      onClick={() => handleAddCollaborator(user.id)}
-                      className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-                    >
-                      Ekle
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Mevcut İşbirlikçiler */}
-          {collaborators.length > 0 && (
-            <div>
-              <h4 className="font-medium mb-2">Mevcut İşbirlikçiler:</h4>
-              <div className="space-y-2">
-                {collaborators.map((collaborator) => (
-                  <div key={collaborator.id} className="flex items-center justify-between p-2 bg-white border border-gray-200 rounded">
-                    <span>{collaborator.username}</span>
-                    <span className="text-green-600 text-sm">✓ Eklendi</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
       </div>
-
-      <div className="mb-4">
-        <label className="flex items-center">
-          <input
-            type="checkbox"
-            checked={article.is_public || false}
-            onChange={(e) => setArticle({ ...article, is_public: e.target.checked })}
-            className="mr-2"
-          />
-          <span className="text-sm text-gray-700">Herkese açık</span>
-        </label>
-      </div>
-
-      {showCollaborators && (
-        <div className="mt-6 p-4 border rounded-lg bg-white shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">İşbirlikçiler</h3>
-          
-          <div className="mb-4">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Kullanıcı ara..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={handleSearchUsers}
-              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Ara
-            </button>
-          </div>
-
-          {searchResults.length > 0 && (
-            <div className="mt-4 space-y-2 max-h-40 overflow-y-auto">
-              {searchResults.map((user) => (
-                <div key={user.id} className="flex items-center justify-between p-2 border rounded">
-                  <div>
-                    <div className="font-medium">{user.username}</div>
-                    <div className="text-sm text-gray-500">{user.email}</div>
-                  </div>
-                  <button
-                    onClick={() => handleAddCollaborator(user.id)}
-                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                  >
-                    Ekle
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-4 space-y-2">
-            {collaborators.length === 0 ? (
-              <p className="text-gray-500">Henüz işbirlikçi yok.</p>
-            ) : (
-              collaborators.map((user) => (
-                <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <div
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: getUserColor(user.id) }}
-                    ></div>
-                    <span className="font-medium">{user.username}</span>
-                  </div>
-                  <span className="text-sm text-gray-500">İşbirlikçi</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

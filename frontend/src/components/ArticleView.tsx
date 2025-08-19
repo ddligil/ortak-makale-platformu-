@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Edit, Calendar, User, Users } from 'lucide-react';
+import { ArrowLeft, Edit, Calendar, User, Users, BookOpen, Eye, History, Share2 } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 // @ts-ignore
 import { InlineMath, BlockMath } from 'react-katex';
@@ -249,156 +249,220 @@ const ArticleView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex justify-center items-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Makale yükleniyor...</p>
+        </div>
       </div>
     );
   }
 
   if (!article) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-semibold text-gray-900">Makale bulunamadı</h2>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex justify-center items-center">
+        <div className="text-center">
+          <div className="w-24 h-24 bg-gradient-to-br from-gray-200 to-gray-300 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <BookOpen className="w-12 h-12 text-gray-500" />
+          </div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-3">Makale bulunamadı</h3>
+          <p className="text-gray-600 mb-8">Aradığınız makale mevcut değil veya erişim izniniz yok.</p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+          >
+            Dashboard'a Dön
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center space-x-2 text-gray-600 hover:text-gray-800"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          <span>Geri Dön</span>
-        </button>
-        
-        <button
-          onClick={() => navigate(`/article/${id}/edit`)}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          <Edit className="h-4 w-4" />
-          <span>Düzenle</span>
-        </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-md border-b border-white/20 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-blue-600 transition-colors font-medium rounded-lg hover:bg-blue-50"
+              >
+                <ArrowLeft className="h-5 w-5" />
+                <span>Geri Dön</span>
+              </button>
+              
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <BookOpen className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Makale Görüntüle</h1>
+                  <p className="text-gray-600">Makalenizi okuyun ve inceleyin</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              {/* Versiyon Geçmişi */}
+              <button
+                onClick={() => setShowVersions(!showVersions)}
+                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-blue-600 transition-colors font-medium rounded-lg hover:bg-blue-50"
+              >
+                <History className="h-5 w-5" />
+                <span>Geçmiş</span>
+              </button>
+
+              {/* Düzenle */}
+              <button
+                onClick={() => navigate(`/article/${article.id}/edit`)}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center space-x-2"
+              >
+                <Edit className="h-5 w-5" />
+                <span>Düzenle</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold text-gray-900">{article.title}</h1>
-            {!article.is_public && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                Gizli
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center space-x-4 text-sm text-gray-500 mb-6">
-            <div className="flex items-center space-x-1">
-              <Calendar className="h-4 w-4" />
-              <span>Son güncelleme: {formatDate(article.updated_at)}</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <User className="h-4 w-4" />
-              <span>Yazar ID: {article.author_id}</span>
-            </div>
-          </div>
-
-          {collaborators.length > 0 && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-2 mb-2">
-                <Users className="h-4 w-4 text-gray-600" />
-                <span className="font-medium text-gray-700">İşbirlikçiler</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {collaborators.map((user) => (
-                  <span
-                    key={user.id}
-                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                  >
-                    {user.username}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Versiyon Kontrol Sistemi */}
-          {versions.length > 0 && (
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-2">
-                  <span className="font-medium text-blue-800">Versiyon Geçmişi</span>
-                  <span className="text-sm text-blue-600">
-                    (Mevcut: {article.current_version || 1})
-                  </span>
-                </div>
-                <button
-                  onClick={() => setShowVersions(!showVersions)}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  {showVersions ? 'Gizle' : 'Göster'}
-                </button>
-              </div>
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Ana Makale İçeriği */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Makale Başlığı */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/20 shadow-lg text-center">
+              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight">
+                {article.title}
+              </h1>
               
-              {showVersions && (
-                <div className="space-y-2">
-                  <div className="max-h-40 overflow-y-auto space-y-1">
-                    {versions.map((version) => (
-                      <div 
-                        key={version.id} 
-                        className={`p-2 rounded text-xs border ${
-                          selectedVersion === version.version_number 
-                            ? 'bg-blue-100 border-blue-300' 
-                            : 'bg-white border-gray-200'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-medium">Versiyon {version.version_number}</span>
-                            <span className="text-gray-500 ml-2">- {version.user_name}</span>
-                            <span className="text-gray-400 ml-2">
-                              {new Date(version.created_at).toLocaleString('tr-TR')}
+              <div className="flex items-center justify-center space-x-6 text-gray-600">
+                <div className="flex items-center space-x-2">
+                  <Calendar className="h-5 w-5 text-blue-500" />
+                  <span>Oluşturulma: {new Date(article.created_at).toLocaleDateString('tr-TR')}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Calendar className="h-5 w-5 text-green-500" />
+                  <span>Güncelleme: {new Date(article.updated_at).toLocaleDateString('tr-TR')}</span>
+                </div>
+              </div>
+
+              {/* Gizlilik Durumu */}
+              <div className="mt-4">
+                {article.is_public ? (
+                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-green-100 text-green-800 border border-green-200">
+                    <Eye className="h-4 w-4 mr-2" />
+                    Genel Makale
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800 border border-yellow-200">
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Gizli Makale
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Makale İçeriği */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-white/20 shadow-lg">
+              <div className="prose prose-lg max-w-none">
+                <div 
+                  className="text-gray-800 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: article.content }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Sağ Sidebar */}
+          <div className="space-y-6">
+            {/* Yazar Bilgisi */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                <User className="h-5 w-5 mr-2 text-blue-500" />
+                Yazar
+              </h3>
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                  <User className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">
+                    {articleAuthor?.username || 'Bilinmeyen Kullanıcı'}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Makale sahibi
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* İşbirlikçiler */}
+            {collaborators.length > 0 && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                  <Users className="h-5 w-5 mr-2 text-green-500" />
+                  İşbirlikçiler ({collaborators.length})
+                </h3>
+                <div className="space-y-3">
+                  {collaborators.map((collaborator) => (
+                    <div key={collaborator.id} className="flex items-center space-x-3 p-3 bg-gray-50/50 rounded-xl">
+                      <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                        <User className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">{collaborator.username}</div>
+                        <div className="text-sm text-gray-500">{collaborator.email}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Versiyon Geçmişi */}
+            {showVersions && versions.length > 0 && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                  <History className="h-5 w-5 mr-2 text-purple-500" />
+                  Versiyon Geçmişi
+                </h3>
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {versions.map((version) => (
+                    <div 
+                      key={version.id} 
+                      className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                        selectedVersion === version.version_number 
+                          ? 'bg-blue-100 border border-blue-200' 
+                          : 'bg-gray-50/50 hover:bg-gray-100/50'
+                      }`}
+                      onClick={() => setSelectedVersion(version.version_number)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">
+                              {version.user_name.charAt(0).toUpperCase()}
                             </span>
                           </div>
-                          <button
-                            onClick={() => loadVersion(version.version_number)}
-                            className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-                          >
-                            Görüntüle
-                          </button>
+                          <span className="font-medium text-sm text-gray-900">
+                            {version.user_name}
+                          </span>
                         </div>
-                        {version.note && (
-                          <div className="text-gray-600 mt-1 italic">
-                            {version.note}
-                          </div>
-                        )}
+                        <span className="text-xs text-gray-500">
+                          v{version.version_number}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                  
-                  {selectedVersion && (
-                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                      <strong>Versiyon {selectedVersion}</strong> görüntüleniyor. 
-                      <button
-                        onClick={() => {
-                          fetchArticle();
-                          setSelectedVersion(null);
-                        }}
-                        className="ml-2 px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                      >
-                        Güncel Versiyona Dön
-                      </button>
+                      <p className="text-xs text-gray-600 mb-2">{version.note}</p>
+                      <p className="text-xs text-gray-400">
+                        {new Date(version.created_at).toLocaleString('tr-TR')}
+                      </p>
                     </div>
-                  )}
+                  ))}
                 </div>
-              )}
-            </div>
-          )}
-
-          <div className="article-content prose max-w-none">
-            {processUserTags(article.content)}
+              </div>
+            )}
           </div>
         </div>
       </div>
