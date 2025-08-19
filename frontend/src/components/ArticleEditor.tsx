@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { Save, ArrowLeft, Users, Plus, X, Search, BookOpen, Edit3, Eye, History } from 'lucide-react';
+import { Save, ArrowLeft, Users, Plus, X, Search, BookOpen, Edit3, Eye, History, Brain, MessageCircle, Sparkles, Loader2, FileText } from 'lucide-react';
 
 interface Article {
   id?: number;
@@ -54,6 +54,14 @@ const ArticleEditor: React.FC = () => {
   const [versions, setVersions] = useState<Version[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
   const [showVersions, setShowVersions] = useState(false);
+  
+  // AI State'leri
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<string>('');
+  const [aiQuestion, setAiQuestion] = useState<string>('');
+  const [aiAnswer, setAiAnswer] = useState<string>('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAsking, setIsAsking] = useState(false);
 
   const isEditing = id && id !== 'new';
 
@@ -235,7 +243,12 @@ const ArticleEditor: React.FC = () => {
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const selectedText = article.content.substring(start, end);
+    let selectedText = article.content.substring(start, end);
+    
+    // Eğer seçili metin yoksa, placeholder text ekle
+    if (!selectedText.trim()) {
+      selectedText = 'Yazı';
+    }
     
     let formattedText = '';
     switch (format) {
@@ -281,19 +294,19 @@ const ArticleEditor: React.FC = () => {
         }
         break;
       case 'color-red':
-        formattedText = `<span style="color: red;">${selectedText}</span>`;
+        formattedText = `<span style="color: #dc2626; font-weight: bold;">${selectedText}</span>`;
         break;
       case 'color-blue':
-        formattedText = `<span style="color: blue;">${selectedText}</span>`;
+        formattedText = `<span style="color: #2563eb; font-weight: bold;">${selectedText}</span>`;
         break;
       case 'color-green':
-        formattedText = `<span style="color: green;">${selectedText}</span>`;
+        formattedText = `<span style="color: #16a34a; font-weight: bold;">${selectedText}</span>`;
         break;
       case 'color-yellow':
-        formattedText = `<span style="color: orange;">${selectedText}</span>`;
+        formattedText = `<span style="color: #ca8a04; font-weight: bold;">${selectedText}</span>`;
         break;
       case 'color-purple':
-        formattedText = `<span style="color: purple;">${selectedText}</span>`;
+        formattedText = `<span style="color: #9333ea; font-weight: bold;">${selectedText}</span>`;
         break;
       default:
         return;
@@ -519,6 +532,62 @@ const ArticleEditor: React.FC = () => {
     await handleSearchUsers();
   };
 
+  // AI Analiz Fonksiyonları
+  const handleAIAnalysis = async (analysisType: string) => {
+    if (!article.content.trim()) {
+      toast.error('Analiz için makale içeriği gerekli');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post('http://localhost:8080/ai/analyze', {
+        content: article.content,
+        analysis_type: analysisType
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setAiAnalysis(response.data.analysis);
+      toast.success('AI analizi tamamlandı');
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'AI analizi başarısız');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleAIQuestion = async () => {
+    if (!article.content.trim()) {
+      toast.error('Soru için makale içeriği gerekli');
+      return;
+    }
+
+    if (!aiQuestion.trim()) {
+      toast.error('Lütfen bir soru yazın');
+      return;
+    }
+
+    setIsAsking(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post('http://localhost:8080/ai/question', {
+        content: article.content,
+        question: aiQuestion
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setAiAnswer(response.data.answer);
+      toast.success('Soru cevaplandı');
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Soru cevaplanamadı');
+    } finally {
+      setIsAsking(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
@@ -550,6 +619,15 @@ const ArticleEditor: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* AI Analiz */}
+              <button
+                onClick={() => setShowAIPanel(!showAIPanel)}
+                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-purple-600 transition-colors font-medium rounded-lg hover:bg-purple-50"
+              >
+                <Brain className="h-5 w-5" />
+                <span>AI Analiz</span>
+              </button>
+
               {/* Versiyon Geçmişi */}
               <button
                 onClick={() => setShowVersions(!showVersions)}
@@ -614,17 +692,191 @@ const ArticleEditor: React.FC = () => {
               <label className="block text-sm font-semibold text-gray-700 mb-3">
                 Makale İçeriği
               </label>
-              <div className="border border-gray-300 rounded-xl overflow-hidden bg-white/50 backdrop-blur-sm">
-                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <Edit3 className="h-4 w-4" />
-                    <span>Zengin metin editörü</span>
-                  </div>
+              
+              {/* Editör Butonları */}
+              <div className="flex items-center space-x-3 mb-4">
+                <button
+                  onClick={handleContinueFromLast}
+                  className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  <span>Kaldığın yerden devam et</span>
+                </button>
+                
+                <button
+                  onClick={handleAddContent}
+                  className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Üstüne ekle</span>
+                </button>
+              </div>
+
+              {/* Zengin Metin Editörü Toolbar */}
+              <div className="bg-gray-50 px-4 py-3 border border-gray-200 rounded-t-xl">
+                <div className="flex items-center space-x-2 text-sm text-gray-600 mb-3">
+                  <Edit3 className="h-4 w-4" />
+                  <span>Zengin metin editörü</span>
                 </div>
+                
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Temel Formatlar */}
+                  <button
+                    onClick={() => applyFormat('bold')}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                    title="Kalın"
+                  >
+                    <strong>B</strong>
+                  </button>
+                  
+                  <button
+                    onClick={() => applyFormat('italic')}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                    title="İtalik"
+                  >
+                    <em>I</em>
+                  </button>
+                  
+                  <button
+                    onClick={() => applyFormat('underline')}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                    title="Altı çizili"
+                  >
+                    <u>U</u>
+                  </button>
+                  
+                  <button
+                    onClick={() => applyFormat('strikethrough')}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                    title="Üstü çizili"
+                  >
+                    <s>S</s>
+                  </button>
+                  
+                  <div className="w-px h-6 bg-gray-300"></div>
+                  
+                  {/* Başlıklar */}
+                  <button
+                    onClick={() => applyFormat('h1')}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                    title="Başlık 1"
+                  >
+                    H1
+                  </button>
+                  
+                  <button
+                    onClick={() => applyFormat('h2')}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                    title="Başlık 2"
+                  >
+                    H2
+                  </button>
+                  
+                  <button
+                    onClick={() => applyFormat('h3')}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                    title="Başlık 3"
+                  >
+                    H3
+                  </button>
+                  
+                  <div className="w-px h-6 bg-gray-300"></div>
+                  
+                  {/* Özel Formatlar */}
+                  <button
+                    onClick={() => applyFormat('quote')}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                    title="Alıntı"
+                  >
+                    "
+                  </button>
+                  
+                  <button
+                    onClick={() => applyFormat('code')}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                    title="Kod"
+                  >
+                    {'<>'}
+                  </button>
+                  
+                  <button
+                    onClick={() => applyFormat('link')}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                    title="Link"
+                  >
+                    🔗
+                  </button>
+                  
+                  <div className="w-px h-6 bg-gray-300"></div>
+                  
+                  {/* LaTeX */}
+                  <button
+                    onClick={() => applyFormat('latex')}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                    title="LaTeX (satır içi)"
+                  >
+                    Σ
+                  </button>
+                  
+                  <button
+                    onClick={() => applyFormat('latex-block')}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                    title="LaTeX (blok)"
+                  >
+                    ∫
+                  </button>
+                  
+                  <div className="w-px h-6 bg-gray-300"></div>
+                  
+                  {/* Renkler */}
+                  <button
+                    onClick={() => applyFormat('color-red')}
+                    className="px-3 py-1 bg-red-100 border border-red-300 rounded text-sm hover:bg-red-200 transition-colors text-red-700"
+                    title="Kırmızı"
+                  >
+                    🔴
+                  </button>
+                  
+                  <button
+                    onClick={() => applyFormat('color-blue')}
+                    className="px-3 py-1 bg-blue-100 border border-blue-300 rounded text-sm hover:bg-blue-200 transition-colors text-blue-700"
+                    title="Mavi"
+                  >
+                    🔵
+                  </button>
+                  
+                  <button
+                    onClick={() => applyFormat('color-green')}
+                    className="px-3 py-1 bg-green-100 border border-green-300 rounded text-sm hover:bg-green-200 transition-colors text-green-700"
+                    title="Yeşil"
+                  >
+                    🟢
+                  </button>
+                  
+                  <button
+                    onClick={() => applyFormat('color-yellow')}
+                    className="px-3 py-1 bg-yellow-100 border border-yellow-300 rounded text-sm hover:bg-yellow-200 transition-colors text-yellow-700"
+                    title="Sarı"
+                  >
+                    🟡
+                  </button>
+                  
+                  <button
+                    onClick={() => applyFormat('color-purple')}
+                    className="px-3 py-1 bg-purple-100 border border-purple-300 rounded text-sm hover:bg-purple-200 transition-colors text-purple-700"
+                    title="Mor"
+                  >
+                    🟣
+                  </button>
+                </div>
+              </div>
+              
+              <div className="border border-gray-300 rounded-b-xl overflow-hidden bg-white/50 backdrop-blur-sm">
                 <div className="p-4">
                   <textarea
+                    id="article-content"
                     value={article.content}
-                    onChange={(e) => setArticle({ ...article, content: e.target.value })}
+                    onChange={handleContentChange}
                     placeholder="Makale içeriğinizi buraya yazın..."
                     className="w-full h-96 resize-none border-none outline-none bg-transparent text-gray-900 placeholder-gray-500 text-base leading-relaxed"
                   />
@@ -797,6 +1049,111 @@ const ArticleEditor: React.FC = () => {
                      </button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* AI Analiz Panel */}
+            {showAIPanel && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center space-x-2">
+                    <Brain className="h-5 w-5 text-purple-600" />
+                    <span>AI Analiz</span>
+                  </h3>
+                  <button
+                    onClick={() => setShowAIPanel(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Hızlı Analiz Butonları */}
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-gray-700 text-sm">Hızlı Analiz</h4>
+                    <div className="grid grid-cols-1 gap-2">
+                      <button
+                        onClick={() => handleAIAnalysis('summary')}
+                        disabled={isAnalyzing}
+                        className="flex items-center justify-center space-x-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 disabled:opacity-50"
+                      >
+                        {isAnalyzing ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        ) : (
+                          <FileText className="h-4 w-4" />
+                        )}
+                        <span>Makaleyi Özetle</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => handleAIAnalysis('contribution_analysis')}
+                        disabled={isAnalyzing}
+                        className="flex items-center justify-center space-x-2 px-3 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-sm rounded-lg hover:from-indigo-700 hover:to-blue-700 transition-all duration-200 disabled:opacity-50"
+                      >
+                        {isAnalyzing ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        ) : (
+                          <Users className="h-4 w-4" />
+                        )}
+                        <span>Katkı Analizi</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Soru-Cevap Bölümü */}
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-gray-700 text-sm">Soru Sor</h4>
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={aiQuestion}
+                        onChange={(e) => setAiQuestion(e.target.value)}
+                        placeholder="Makale hakkında soru sorun..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-sm"
+                      />
+                      <button
+                        onClick={handleAIQuestion}
+                        disabled={isAsking || !aiQuestion.trim()}
+                        className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 disabled:opacity-50"
+                      >
+                        {isAsking ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        ) : (
+                          <MessageCircle className="h-4 w-4" />
+                        )}
+                        <span>Soru Sor</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Sonuçlar */}
+                  {(aiAnalysis || aiAnswer) && (
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-gray-700 text-sm">Sonuçlar</h4>
+                      
+                      {aiAnalysis && (
+                        <div className="p-3 bg-purple-50/50 rounded-lg border border-purple-200">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <FileText className="h-4 w-4 text-purple-600" />
+                            <span className="text-sm font-medium text-purple-900">AI Analizi</span>
+                          </div>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{aiAnalysis}</p>
+                        </div>
+                      )}
+                      
+                      {aiAnswer && (
+                        <div className="p-3 bg-green-50/50 rounded-lg border border-green-200">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <MessageCircle className="h-4 w-4 text-green-600" />
+                            <span className="text-sm font-medium text-green-900">Soru Cevabı</span>
+                          </div>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{aiAnswer}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

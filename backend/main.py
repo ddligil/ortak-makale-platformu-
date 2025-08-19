@@ -1,14 +1,24 @@
-from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import List, Optional
+import os
+from dotenv import load_dotenv
+import openai
 import uvicorn
 from datetime import datetime, timedelta
-import jwt
+from typing import Optional, List
+from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
+from jose import JWTError, jwt
+from jose import exceptions as jose_exceptions
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from data_storage import storage
+
+# .env dosyasını yükle
+load_dotenv()
+
+# OpenAI client'ı başlat
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Pydantic Models
 class UserCreate(BaseModel):
@@ -51,6 +61,14 @@ class CollaborationCreate(BaseModel):
 class FriendshipCreate(BaseModel):
     friend_id: int
 
+class AIAnalysisRequest(BaseModel):
+    content: str
+    analysis_type: str  # "summary", "question", "contribution_analysis"
+
+class AIQuestionRequest(BaseModel):
+    content: str
+    question: str
+
 app = FastAPI(title="Ortak Makale Platformu", version="1.0.0")
 
 # CORS ayarları
@@ -63,9 +81,9 @@ app.add_middleware(
 )
 
 # Güvenlik
-SECRET_KEY = "your-secret-key-here"
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
@@ -81,22 +99,92 @@ def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
+    # Sub field'ı string olarak set et
+    if "sub" in to_encode:
+        to_encode["sub"] = str(to_encode["sub"])
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
-        if user_id is None:
+        user_id_str = payload.get("sub")
+        if user_id_str is None:
             raise HTTPException(status_code=401, detail="Geçersiz token")
-    except jwt.PyJWTError:
+        user_id = int(user_id_str)  # String'den int'e çevir
+    except Exception as e:
+        print(f"Token decode error: {e}")  # Debug için
         raise HTTPException(status_code=401, detail="Geçersiz token")
     
     user = storage.get_user_by_id(user_id)
     if user is None:
         raise HTTPException(status_code=401, detail="Kullanıcı bulunamadı")
     return user
+
+# AI Yardımcı fonksiyonları
+def analyze_article_content(content: str, analysis_type: str) -> str:
+    """Makale içeriğini AI ile analiz eder"""
+    try:
+        if analysis_type == "summary":
+            prompt = f"""Aşağıdaki makaleyi Türkçe olarak özetle. Ana noktaları, konuları ve sonuçları belirt:
+
+Makale:
+{content}
+
+Özet:"""
+        
+        elif analysis_type == "contribution_analysis":
+            prompt = f"""Bu makalede kim hangi kısmı yazmış, analiz et. Kullanıcı etiketlerini ([username - timestamp]) kullanarak her kullanıcının katkısını özetle:
+
+Makale:
+{content}
+
+Katkı Analizi:"""
+        
+        else:
+            return "Geçersiz analiz türü"
+
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Sen bir makale analiz uzmanısın. Türkçe cevap ver."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        return response.choices[0].message.content.strip()
+    
+    except Exception as e:
+        return f"AI analizi sırasında hata oluştu: {str(e)}"
+
+def answer_question(content: str, question: str) -> str:
+    """Makale hakkında soru sorar ve cevap verir"""
+    try:
+        prompt = f"""Aşağıdaki makaleyi oku ve sorulan soruyu Türkçe olarak cevapla:
+
+Makale:
+{content}
+
+Soru: {question}
+
+Cevap:"""
+
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Sen bir makale analiz uzmanısın. Verilen makaleyi okuyup soruları Türkçe olarak cevapla."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=400,
+            temperature=0.7
+        )
+        
+        return response.choices[0].message.content.strip()
+    
+    except Exception as e:
+        return f"Soru cevaplanırken hata oluştu: {str(e)}"
 
 # Routes
 @app.post("/register", response_model=UserResponse)
@@ -414,6 +502,34 @@ def restore_version(
     )
     
     return ArticleResponse(**updated_article)
+
+# AI Analiz Endpoint'leri
+@app.post("/ai/analyze")
+async def analyze_article(
+    request: AIAnalysisRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Makale içeriğini AI ile analiz eder"""
+    if not request.content.strip():
+        raise HTTPException(status_code=400, detail="İçerik boş olamaz")
+    
+    analysis = analyze_article_content(request.content, request.analysis_type)
+    return {"analysis": analysis, "type": request.analysis_type}
+
+@app.post("/ai/question")
+async def ask_question(
+    request: AIQuestionRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Makale hakkında soru sorar"""
+    if not request.content.strip():
+        raise HTTPException(status_code=400, detail="Makale içeriği boş olamaz")
+    
+    if not request.question.strip():
+        raise HTTPException(status_code=400, detail="Soru boş olamaz")
+    
+    answer = answer_question(request.content, request.question)
+    return {"question": request.question, "answer": answer}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8080) 
